@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from Dataset import a2bsDataset
+from scripts.Dataset import a2bsDataset
 
 class BasicBlock(nn.Module):
     '''
@@ -123,29 +123,6 @@ class FaceGenerator(nn.Module):
 
         audio_feat_seq = None
         audio_feat_seq = self.audio_encoder(in_audio)  # output (bs, n_frames, feat_size)
-        
-        # if self.facial_f is not 0:
-        #     # facial
-        #     # print(in_facial.shape)
-        #     face_feat_seq = self.facial_encoder(in_facial.permute([0, 2, 1]))
-        #     face_feat_seq = face_feat_seq.permute([0, 2, 1])
-    
-        # if is_test:
-        #     if self.facial_f is not 0:
-        #         min_length = min(pre_seq.shape[1], audio_feat_seq.shape[1], face_feat_seq.shape[1])
-        #         pre_seq = pre_seq[:,: min_length]
-        #         audio_feat_seq = audio_feat_seq[:, : min_length]
-        #         face_feat_seq = face_feat_seq[:, : min_length]
-        #     else:
-        #         min_length = min(pre_seq.shape[1], audio_feat_seq.shape[1])
-        #         pre_seq = pre_seq[:,: min_length]
-        #         audio_feat_seq = audio_feat_seq[:, : min_length]
-            #print(pre_seq.shape)
-        # if self.audio_f is not 0 and self.facial_f is 0:
-        #     in_data = torch.cat((pre_seq, audio_feat_seq), dim=2)
-        # elif self.audio_f is not 0 and self.facial_f is not 0:
-        #     in_data = torch.cat((pre_seq, audio_feat_seq, face_feat_seq), dim=2)
-        # else: pass
         
         in_data = torch.cat((pre_seq, audio_feat_seq), dim=2)
         

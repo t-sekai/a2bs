@@ -1,5 +1,8 @@
+__pycache__
 datasets
 datasets_cache
 *datasets_cache
-__pycache__
 .ipynb_checkpoints
+
+nautilus/*/**/job*.yml
+nautilus/*/**/pod*.yml
