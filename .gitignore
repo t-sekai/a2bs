@@ -1,3 +1,5 @@
 datasets
 datasets_cache
+*datasets_cache
+__pycache__
 .ipynb_checkpoints

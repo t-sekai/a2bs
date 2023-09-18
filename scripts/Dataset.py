@@ -15,7 +15,8 @@ import scipy.io.wavfile
 
 
 class a2bsDataset(Dataset):
-    def __init__(self, loader_type = 'train', data_dir = 'datasets', facial_fps=15, audio_fps=16000, facial_length=34, stride=10, speaker_id=True, build_cache=False):
+    def __init__(self, seed = 42, loader_type = 'train', data_dir = 'datasets', facial_fps=15, audio_fps=16000, facial_length=34, stride=10, speaker_id=True, build_cache=False):
+        self.seed = seed
         self.loader_type = loader_type
         self.data_dir = data_dir
         self.out_lmdb_dir = data_dir + "_cache"
@@ -28,25 +29,43 @@ class a2bsDataset(Dataset):
         if build_cache:
             self.build_cache()
         
-        self.lmdb_env = lmdb.open(self.out_lmdb_dir, readonly=True, lock=False)
+        self.lmdb_env = lmdb.open(f'{self.loader_type}_{self.out_lmdb_dir}', readonly=True, lock=False)
         with self.lmdb_env.begin() as txn:
             self.n_samples = txn.stat()["entries"]
             
             
     def build_cache(self):
-        if os.path.exists(self.out_lmdb_dir):
-            shutil.rmtree(self.out_lmdb_dir)
+        if os.path.exists(f'train_{self.out_lmdb_dir}'):
+            shutil.rmtree(f'train_{self.out_lmdb_dir}')
+        if os.path.exists(f'eval_{self.out_lmdb_dir}'):
+            shutil.rmtree(f'eval_{self.out_lmdb_dir}')
+        if os.path.exists(f'test_{self.out_lmdb_dir}'):
+            shutil.rmtree(f'test_{self.out_lmdb_dir}')
         
-        self.n_out_samples = 0
-        audio_file_paths = [name for name in sorted(glob.glob(os.path.join(self.data_dir, '**/*.wav'), recursive=True))]
-        facial_file_paths = [name for name in sorted(glob.glob(os.path.join(self.data_dir, '**/*.json'), recursive=True))]
+        train_samples, eval_samples, test_samples = 0, 0, 0
         
+        #shuffle for split
+        file_paths = [name[:-4] for name in sorted(glob.glob(os.path.join(self.data_dir, '**/*.wav'), recursive=True))]
+        np.random.seed(self.seed)
+        np.random.shuffle(file_paths)
+        
+        audio_file_paths = [name+'.wav' for name in file_paths]
+        facial_file_paths = [name+'.json' for name in file_paths]
+        
+        
+        ### 70% train, 15% eval, 15% test
+        
+        train_per, eval_per, test_per = 0.70, 0.15, 0.15
             
         map_size = int(1024 * 1024 * 2048 * (self.audio_fps/16000)**3 * 4)  # in 1024 MB
-        dst_lmdb_env = lmdb.open(self.out_lmdb_dir, map_size=map_size)
+        
+        train_dst_lmdb_env = lmdb.open(f'train_{self.out_lmdb_dir}', map_size=map_size)
+        eval_dst_lmdb_env = lmdb.open(f'eval_{self.out_lmdb_dir}', map_size=map_size)
+        test_dst_lmdb_env = lmdb.open(f'test_{self.out_lmdb_dir}', map_size=map_size)
+        
         n_filtered_out = defaultdict(int)
         
-        for audio_file in audio_file_paths:
+        for idx, audio_file in enumerate(audio_file_paths):
             audio_each_file = []
             facial_each_file = []
             vid_each_file = []
@@ -71,18 +90,36 @@ class a2bsDataset(Dataset):
             if self.speaker_id:
                 vid_each_file.append(int(audio_file.split('/')[1]))
             
-            self._sample_from_clip(
-                dst_lmdb_env,
+            # train-eval-test split
+            if idx < train_per * len(file_paths):
+                train_samples = self._sample_from_clip(
+                train_samples, train_dst_lmdb_env,
                 audio_each_file, facial_each_file, vid_each_file
-                ) 
-        dst_lmdb_env.sync()
-        dst_lmdb_env.close()
+                )
+            elif idx < (train_per + eval_per) * len(file_paths):
+                eval_samples = self._sample_from_clip(
+                eval_samples, eval_dst_lmdb_env,
+                audio_each_file, facial_each_file, vid_each_file
+                )
+            else:
+                test_samples = self._sample_from_clip(
+                test_samples, test_dst_lmdb_env,
+                audio_each_file, facial_each_file, vid_each_file
+                )
+            
+            
+        train_dst_lmdb_env.sync()
+        train_dst_lmdb_env.close()
+        eval_dst_lmdb_env.sync()
+        eval_dst_lmdb_env.close()
+        test_dst_lmdb_env.sync()
+        test_dst_lmdb_env.close()
 
     def __len__(self):
         return self.n_samples
 
     
-    def _sample_from_clip(self, dst_lmdb_env, audio_each_file, facial_each_file, vid_each_file):
+    def _sample_from_clip(self, n_out_samples, dst_lmdb_env, audio_each_file, facial_each_file, vid_each_file):
         
         audio_start = 0
         facial_start = 0
@@ -137,9 +174,10 @@ class a2bsDataset(Dataset):
                     serialized_data = pickle.dumps([audio, facial, vid])
 
                     # Save data
-                    k = "{:005}".format(self.n_out_samples).encode("ascii")
+                    k = "{:005}".format(n_out_samples).encode("ascii")
                     txn.put(k, serialized_data)
-                    self.n_out_samples += 1
+                    n_out_samples += 1
+        return n_out_samples
         
 
     def __getitem__(self, idx):
