@@ -15,10 +15,11 @@ import scipy.io.wavfile
 
 
 class a2bsDataset(Dataset):
-    def __init__(self, seed = 42, loader_type = 'train', data_dir = 'datasets', facial_fps=15, audio_fps=16000, facial_length=34, stride=10, speaker_id=True, build_cache=False):
+    def __init__(self, seed = 42, loader_type = 'train', mount_dir = '/tsc003-beat-vol', data_dir = 'beat_english_v0.2.1', facial_fps=15, audio_fps=16000, facial_length=34, stride=10, speaker_id=True, build_cache=False):
         self.seed = seed
         self.loader_type = loader_type
-        self.data_dir = data_dir
+        self.mount_dir = mount_dir
+        self.full_dir = f'{self.mount_dir}/{data_dir}'
         self.out_lmdb_dir = data_dir + "_cache"
         self.facial_fps = facial_fps
         self.audio_fps = audio_fps
@@ -29,25 +30,25 @@ class a2bsDataset(Dataset):
         if build_cache:
             self.build_cache()
         
-        self.lmdb_env = lmdb.open(f'{self.loader_type}_{self.out_lmdb_dir}', readonly=True, lock=False)
+        self.lmdb_env = lmdb.open(f'{self.mount_dir}/{self.loader_type}_{self.out_lmdb_dir}', readonly=True, lock=False)
         with self.lmdb_env.begin() as txn:
             self.n_samples = txn.stat()["entries"]
             
             
     def build_cache(self):
-        if os.path.exists(f'train_{self.out_lmdb_dir}'):
-            shutil.rmtree(f'train_{self.out_lmdb_dir}')
-        if os.path.exists(f'eval_{self.out_lmdb_dir}'):
-            shutil.rmtree(f'eval_{self.out_lmdb_dir}')
-        if os.path.exists(f'test_{self.out_lmdb_dir}'):
-            shutil.rmtree(f'test_{self.out_lmdb_dir}')
+        for load_type in ['train','eval','test']:
+            if os.path.exists(f'{self.mount_dir}/{load_type}_{self.out_lmdb_dir}'):
+                shutil.rmtree(f'{self.mount_dir}/{load_type}_{self.out_lmdb_dir}')
+            
         
         train_samples, eval_samples, test_samples = 0, 0, 0
         
         #shuffle for split
-        file_paths = [name[:-4] for name in sorted(glob.glob(os.path.join(self.data_dir, '**/*.wav'), recursive=True))]
+        file_paths = [name[:-4] for name in sorted(glob.glob(os.path.join(self.full_dir, '**/*.wav'), recursive=True))]
         np.random.seed(self.seed)
         np.random.shuffle(file_paths)
+
+        validate_facial_paths = [name for name in sorted(glob.glob(os.path.join(self.full_dir, '**/*.json'), recursive=True))]
         
         audio_file_paths = [name+'.wav' for name in file_paths]
         facial_file_paths = [name+'.json' for name in file_paths]
@@ -57,11 +58,11 @@ class a2bsDataset(Dataset):
         
         train_per, eval_per, test_per = 0.70, 0.15, 0.15
             
-        map_size = int(1024 * 1024 * 2048 * (self.audio_fps/16000)**3 * 4)  # in 1024 MB
+        map_size = 5 * int(1024 * 1024 * 2048 * (self.audio_fps/16000)**3 * 4)  # in 5 * 1024 MB = 5 GB
         
-        train_dst_lmdb_env = lmdb.open(f'train_{self.out_lmdb_dir}', map_size=map_size)
-        eval_dst_lmdb_env = lmdb.open(f'eval_{self.out_lmdb_dir}', map_size=map_size)
-        test_dst_lmdb_env = lmdb.open(f'test_{self.out_lmdb_dir}', map_size=map_size)
+        train_dst_lmdb_env = lmdb.open(f'{self.mount_dir}/train_{self.out_lmdb_dir}', map_size=map_size)
+        eval_dst_lmdb_env = lmdb.open(f'{self.mount_dir}/eval_{self.out_lmdb_dir}', map_size=map_size)
+        test_dst_lmdb_env = lmdb.open(f'{self.mount_dir}/test_{self.out_lmdb_dir}', map_size=map_size)
         
         n_filtered_out = defaultdict(int)
         
@@ -70,7 +71,7 @@ class a2bsDataset(Dataset):
             facial_each_file = []
             vid_each_file = []
             #vid_each_file = []
-            if f'{audio_file[:-4]}.json' not in facial_file_paths:
+            if f'{audio_file[:-4]}.json' not in validate_facial_paths:
                 print(f'Skipping {audio_file[:-4]}.')
                 continue
             else:
@@ -88,7 +89,7 @@ class a2bsDataset(Dataset):
             facial_each_file = np.array(facial_each_file)
             
             if self.speaker_id:
-                vid_each_file.append(int(audio_file.split('/')[1]))
+                vid_each_file.append(int(audio_file.split('/')[-2]))
             
             # train-eval-test split
             if idx < train_per * len(file_paths):
