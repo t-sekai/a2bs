@@ -3,6 +3,3 @@ datasets
 datasets_cache
 *datasets_cache
 .ipynb_checkpoints
-
-nautilus/*/**/job*.yml
-nautilus/*/**/pod*.yml
