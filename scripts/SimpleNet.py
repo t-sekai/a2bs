@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from scripts.Dataset import a2bsDataset
 
 class BasicBlock(nn.Module):
     '''
@@ -124,7 +123,7 @@ class FaceGenerator(nn.Module):
         audio_feat_seq = None
         audio_feat_seq = self.audio_encoder(in_audio)  # output (bs, n_frames, feat_size)
         
-        in_data = torch.cat((pre_seq, audio_feat_seq), dim=2)
+        in_data = torch.cat((pre_seq, audio_feat_seq), dim=-1)
         
         # if speaker_feat_seq is not None:
         #     #if print(z_context.shape)
@@ -157,6 +156,7 @@ class RMSLELoss(nn.Module):
     
 
 if __name__ == "__main__":
+    from scripts.Dataset import a2bsDataset
     train_data = a2bsDataset(build_cache=False)
 
     train_loader = torch.utils.data.DataLoader(

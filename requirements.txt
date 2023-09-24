@@ -45,3 +45,5 @@ yarg
 yarl
 tqdm
 tensorboard
+jupyterlab
+python-osc
