@@ -5,7 +5,7 @@ import torch
 #from tqdm import tqdm
 import scipy
 import math
-import sounddevice as sd
+import pygame
 from SimpleNet import FaceGenerator
 import threading
 
@@ -119,12 +119,14 @@ def send_udp(out_face):
         time.sleep(1/(fps + 9)) # temp
     
 
-def play_audio(audio_data, sample_rate):
-    sd.play(audio_data, sample_rate)
-    sd.wait()
+def play_audio(audio_file_path):
+    pygame.mixer.init()
+    pygame.mixer.music.load(audio_file_path)
+    pygame.mixer.music.play()
+    while pygame.mixer.music.get_busy():
+        pass  # Keep the thread running while audio is playing
 
 if __name__ == "__main__":
-    a = 1/0
     # load in audio
     # audio_file = None
     start = time.time()
@@ -147,14 +149,16 @@ if __name__ == "__main__":
     
     print('Process time:', time.time() - start)
     start = time.time()
-    udp_thread = threading.Thread(target=send_udp, args=(face_cache))
+    udp_thread = threading.Thread(target=send_udp, args=(face_cache,))
     udp_thread.daemon = True  # Set the thread as a daemon to allow it to exit when the main program exits
     udp_thread.start()
 
-    audio_thread = threading.Thread(target=play_audio, args=(test_audio_file, sr))
+    audio_thread = threading.Thread(target=play_audio, args=(test_audio_file,))
     audio_thread.daemon = True
     audio_thread.start()
+
+    udp_thread.join()
+    audio_thread.join()
    
     print('Send UDP time:', time.time() - start)
     print('done')
-    
