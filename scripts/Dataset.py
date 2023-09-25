@@ -68,8 +68,8 @@ class a2bsDataset(Dataset):
             
         map_size = int(self.map_gb * 1024 * 1024 * 1024 * (self.audio_fps/16000)**3)  # in 5 * 1024 MB = 5 GB
         
-        train_dst_lmdb_env = lmdb.open(f'{self.mount_dir}{self.sep}train_{self.out_lmdb_dir}', map_size=map_size)
-        eval_dst_lmdb_env = lmdb.open(f'{self.mount_dir}{self.sep}eval_{self.out_lmdb_dir}', map_size=map_size)
+        train_dst_lmdb_env = lmdb.open(f'{self.mount_dir}{self.sep}train_{self.out_lmdb_dir}', map_size=int(map_size*train_per))
+        eval_dst_lmdb_env = lmdb.open(f'{self.mount_dir}{self.sep}eval_{self.out_lmdb_dir}', map_size=int(map_size*eval_per))
         #test_dst_lmdb_env = lmdb.open(f'{self.mount_dir}{self.sep}test_{self.out_lmdb_dir}', map_size=map_size)
         
         n_filtered_out = defaultdict(int)
