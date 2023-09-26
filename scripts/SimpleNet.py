@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 class BasicBlock(nn.Module):
     '''
@@ -159,23 +160,39 @@ if __name__ == "__main__":
     from scripts.Dataset import a2bsDataset
     train_data = a2bsDataset(build_cache=False)
 
+    mount_dir = '/tsc003-beat-vol'
+
     train_loader = torch.utils.data.DataLoader(
             train_data, 
-            batch_size=16,  
+            batch_size=64,  
             shuffle=True,  
             num_workers=0,
             drop_last=True,
         )
     
+    eval_data = a2bsDataset(loader_type='eval', build_cache=False)
+    eval_loader = torch.utils.data.DataLoader(
+                eval_data, 
+                batch_size=64,  
+                shuffle=True,  
+                num_workers=0,
+                drop_last=True,
+            )
+
     net = FaceGenerator().cuda()
     optimizer = torch.optim.Adam( net.parameters(), lr=1e-3)
     loss_function = RMSLELoss()
+    train_loss = []
+    eval_loss = []
 
     net.train()
-    num_epochs = 5
-    log_period = 100
+    num_epochs = 20
+    log_period = 1000
+    eval_period = 4000
+
     for epoch in range(num_epochs):
         for it, (in_audio, facial, in_id) in enumerate(train_loader):
+            net.train()
             in_audio = in_audio.cuda()
             facial = facial.cuda()
             pre_frames = 4
@@ -187,10 +204,28 @@ if __name__ == "__main__":
             out_face = net(in_pre_face,in_audio)
             loss = loss_function(facial, out_face)
             loss.backward()
+            train_loss.append(loss.item())
             optimizer.step()
             
             #logging
             if it % log_period == 0:
                 print(f'[{epoch}][{it}/{len(train_loader)}] loss: {loss.item()}')
+            
+            if it % eval_period == 0:
+                net.eval()
+                eval_loss_st = []
+                for _, (in_audio, facial, in_id) in enumerate(eval_loader):
+                    in_audio = in_audio.cuda()
+                    facial = facial.cuda()
+                    pre_frames = 4
+                    in_pre_face = facial.new_zeros((facial.shape[0], facial.shape[1], facial.shape[2] + 1)).cuda()
+                    in_pre_face[:, 0:pre_frames, :-1] = facial[:, 0:pre_frames]
+                    in_pre_face[:, 0:pre_frames, -1] = 1 
 
-    print("Train/eval/test split not yet implemented.")
+                    out_face = net(in_pre_face,in_audio)
+                    loss = loss_function(facial, out_face)
+                    eval_loss_st.append(loss.item())
+                
+                eval_loss.append(np.average(eval_loss_st))
+                print(f'[{epoch}][{it}/{len(train_loader)}] eval loss: {np.average(eval_loss_st)}')
+        torch.save(net.state_dict(), f'{mount_dir}/ckpt_model/simplenet_ep_{epoch}.pth')
