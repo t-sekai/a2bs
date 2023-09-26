@@ -20,12 +20,12 @@ spec:
               sleep infinity
       resources:
         requests:
-          cpu: "5"
-          memory: "10Gi"
+          cpu: "10"
+          memory: "20Gi"
           nvidia.com/gpu: "1"
         limits:
-          cpu: "5"
-          memory: "10Gi"
+          cpu: "10"
+          memory: "20Gi"
           nvidia.com/gpu: "1"
       volumeMounts:
         - name: tsc003-beat-vol
@@ -43,4 +43,4 @@ spec:
             - key: nvidia.com/gpu.product
               operator: In
               values:
-                - NVIDIA-GeForce-GTX-1080-Ti
+                - NVIDIA-GeForce-RTX-4090

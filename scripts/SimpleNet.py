@@ -169,15 +169,6 @@ if __name__ == "__main__":
             num_workers=0,
             drop_last=True,
         )
-    
-    eval_data = a2bsDataset(loader_type='eval', build_cache=False)
-    eval_loader = torch.utils.data.DataLoader(
-                eval_data, 
-                batch_size=64,  
-                shuffle=True,  
-                num_workers=0,
-                drop_last=True,
-            )
 
     net = FaceGenerator().cuda()
     optimizer = torch.optim.Adam( net.parameters(), lr=1e-3)
@@ -186,9 +177,10 @@ if __name__ == "__main__":
     eval_loss = []
 
     net.train()
-    num_epochs = 20
-    log_period = 1000
-    eval_period = 4000
+    num_epochs = 2 #20
+    log_period = 100
+    eval_period = 400
+    eval_it = 30
 
     for epoch in range(num_epochs):
         for it, (in_audio, facial, in_id) in enumerate(train_loader):
@@ -212,9 +204,17 @@ if __name__ == "__main__":
                 print(f'[{epoch}][{it}/{len(train_loader)}] loss: {loss.item()}')
             
             if it % eval_period == 0:
+                eval_data = a2bsDataset(loader_type='eval', build_cache=False)
+                eval_loader = torch.utils.data.DataLoader(
+                            eval_data, 
+                            batch_size=64,  
+                            shuffle=True,  
+                            num_workers=0,
+                            drop_last=True,
+                        )
                 net.eval()
                 eval_loss_st = []
-                for _, (in_audio, facial, in_id) in enumerate(eval_loader):
+                for i, (in_audio, facial, in_id) in enumerate(eval_loader):
                     in_audio = in_audio.cuda()
                     facial = facial.cuda()
                     pre_frames = 4
@@ -225,6 +225,9 @@ if __name__ == "__main__":
                     out_face = net(in_pre_face,in_audio)
                     loss = loss_function(facial, out_face)
                     eval_loss_st.append(loss.item())
+
+                    if i >= eval_it:
+                        break
                 
                 eval_loss.append(np.average(eval_loss_st))
                 print(f'[{epoch}][{it}/{len(train_loader)}] eval loss: {np.average(eval_loss_st)}')
