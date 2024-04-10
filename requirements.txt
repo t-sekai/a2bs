@@ -47,3 +47,4 @@ tqdm
 tensorboard
 jupyterlab
 python-osc
+pygame
