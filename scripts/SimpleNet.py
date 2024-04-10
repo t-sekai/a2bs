@@ -157,7 +157,8 @@ class RMSLELoss(nn.Module):
 
 if __name__ == "__main__":
     from scripts.Dataset import a2bsDataset
-    train_data = a2bsDataset(build_cache=False)
+    mount_dir = '/tsc003-beat-vol'
+    train_data = a2bsDataset(build_cache=False, mount_dir=mount_dir)
 
     train_loader = torch.utils.data.DataLoader(
             train_data, 
@@ -172,7 +173,7 @@ if __name__ == "__main__":
     loss_function = RMSLELoss()
 
     net.train()
-    num_epochs = 5
+    num_epochs = 2
     log_period = 100
     for epoch in range(num_epochs):
         for it, (in_audio, facial, in_id) in enumerate(train_loader):
@@ -193,4 +194,6 @@ if __name__ == "__main__":
             if it % log_period == 0:
                 print(f'[{epoch}][{it}/{len(train_loader)}] loss: {loss.item()}')
 
-    print("Train/eval/test split not yet implemented.")
+        torch.save(net.state_dict(), f'{mount_dir}/ckpt_model/simplenet_{epoch}.pth')
+
+    #print("Train/eval/test split not yet implemented.")
