@@ -3,3 +3,4 @@ datasets
 datasets_cache
 *datasets_cache
 .ipynb_checkpoints
+ckpt_model

@@ -159,9 +159,9 @@ class RMSLELoss(nn.Module):
 if __name__ == "__main__":
     from Dataset import a2bsDataset
     from Dataset import a2bsDataset
-    train_data = a2bsDataset(build_cache=False, mount_dir='/data')
+    train_data = a2bsDataset(build_cache=False, mount_dir='..', data_dir='datasets')
 
-    mount_dir = '/tsc003-beat-vol'
+    mount_dir = '..'
 
     train_loader = torch.utils.data.DataLoader(
             train_data, 
@@ -180,8 +180,8 @@ if __name__ == "__main__":
     net.train()
     num_epochs = 20  #20
     log_period = 100
-    eval_period = 1000
-    #eval_it = 30
+    eval_period = 400
+    eval_it = 30
 
     for epoch in range(num_epochs):
         for it, (in_audio, facial, in_id) in enumerate(train_loader):
@@ -206,7 +206,7 @@ if __name__ == "__main__":
                 print(f'[{epoch}][{it}/{len(train_loader)}] loss: {loss.item()}')
             
             if it % eval_period == 0:
-                eval_data = a2bsDataset(loader_type='eval', build_cache=False, mount_dir='/data')
+                eval_data = a2bsDataset(loader_type='eval', build_cache=False, mount_dir='..', data_dir='datasets')
                 eval_loader = torch.utils.data.DataLoader(
                             eval_data, 
                             batch_size=64,  
@@ -228,8 +228,8 @@ if __name__ == "__main__":
                     loss = loss_function(facial, out_face)
                     eval_loss_st.append(loss.item())
 
-                    # if i >= eval_it:
-                    #     break
+                    if i >= eval_it:
+                        break
                 
                 eval_loss.append(np.average(eval_loss_st))
                 print(f'[{epoch}][{it}/{len(train_loader)}] eval loss: {np.average(eval_loss_st)}')
